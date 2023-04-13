@@ -20,22 +20,33 @@
 
     [Parameter(
         Mandatory=$true,
-        helpMessage = 'environment- accepted values: NPE and PROD',
-        Position = 3)]
-    [validateSet("NPE","PROD")]
-    [string[]]$subenv,
+        helpMessage = 'package source UNC path',
+        Position = 3)]    
+    [string]$pkgSrcPath,
 
     [Parameter(
         Mandatory=$false,
         helpMessage = 'generate unique package list only, will not create CM package',
         Position = 4)]
     [Switch]$listonly,
+	
+	[Parameter(
+        Mandatory=$false,
+        helpMessage = 'Ditribution point group name(s)',
+        Position = 5)]    
+    [string[]]$dpGroupName
+	
+	[Parameter(
+        Mandatory=$false,
+        helpMessage = 'Distribution point(s)',
+        Position = 6)]    
+    [string[]]$dpName,
     
     [Parameter(
 		Mandatory = $false,
 		ValueFromPipeline = $true,
 		HelpMessage = 'Specifies the full path to the log file, e.g. "C:\Log\Logfile.log"',
-		Position = 5)]
+		Position = 7)]
 	[ValidateNotNullorEmpty()]
     [string]$logFile="$([environment]::GetEnvironmentVariable('TEMP', 'Machine'))" + "\createmaster.log"		
 )
@@ -115,7 +126,7 @@ function main
             #create package
             write-host "Creating SCCM package" -foregroundColor green 
             
-            $ncp = new-cmPackage -name "$($subenv.toUpper())-Nomad Cache Clean-$(get-date -Format 'yyMMddHHmm')" `
+            $ncp = new-cmPackage -name "$Nomad Cache Clean-$(get-date -Format 'yyMMddHHmm')" `
                     -version "$(get-date -Format 'yyyyMMddHHmm')" -manufacturer "[OSD] - Tools" `
                     -language "English" -description "Master .TXT file listing pkgIDs to keep in nomad cache" `
                     -path $pkgDir.fullName -errorAction stop
@@ -175,10 +186,7 @@ function main
         $CMPSSuppressFastNotUsedCheck = $true
         $cmconpath = $env:SMS_ADMIN_UI_PATH
         $modName = "configurationManager"
-        $pkgRef = @()
-        $pkgSrcPath = "fileSystem::\\corp.auspost.local\dsl\retail_osdsource\OSDAppSource"
-        $dpGroupName = "All Retail Distribution Points"
-
+        $pkgRef = @()   
         write-host "$(Get-Date); <---- Starting $($MyInvocation.ScriptName) on host $env:COMPUTERNAME  ---->"
 
         main
