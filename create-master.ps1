@@ -40,15 +40,8 @@
         Mandatory=$false,
         helpMessage = 'Distribution point(s)',
         Position = 6)]    
-    [string[]]$dpName,
-    
-    [Parameter(
-		Mandatory = $false,
-		ValueFromPipeline = $true,
-		HelpMessage = 'Specifies the full path to the log file, e.g. "C:\Log\Logfile.log"',
-		Position = 7)]
-	[ValidateNotNullorEmpty()]
-    [string]$logFile="$([environment]::GetEnvironmentVariable('TEMP', 'Machine'))" + "\createmaster.log"		
+    [string[]]$dpName 
+ 
 )
 
 function main
