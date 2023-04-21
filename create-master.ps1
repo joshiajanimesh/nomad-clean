@@ -2,26 +2,33 @@
 (
     [Parameter(
         Mandatory=$true,
-        helpMessage = 'CM sitecode',
+        helpMessage = 'CM sitecode',		
         Position = 0)]
+		[validateNotNullOrEmpty()]
+		[validateLength(1,3)]
     [string]$sitecode,
     
     [Parameter(
         Mandatory=$true,
         helpMessage = 'task sequence pkgIDs seperated by commas',
         Position = 1)]
+        [validateNotNullOrEmpty()]
     [string[]]$tsid, 
 
     [Parameter(
         Mandatory=$false,
         helpMessage = 'individual pkgIDs seperated by commas',
         Position = 2)]
+        [validateNotNullOrEmpty()]
     [string[]]$pkgid,
 
     [Parameter(
         Mandatory=$true,
-        helpMessage = 'package source UNC path',
-        Position = 3)]    
+        helpMessage = 'Enter package source UNC path',        
+        Position = 1)]
+        [validateScript({            
+            ([bool]([uri]$_).isUNC) -and ($_ -match '\\\\\w+\\\w+')            
+        })]    
     [string]$pkgSrcPath,
 
     [Parameter(
@@ -33,19 +40,22 @@
 	[Parameter(
         Mandatory=$false,
         helpMessage = 'Ditribution point group name(s)',
-        Position = 5)]    
-    [string[]]$dpGroupName
+        Position = 5)]
+        [validateNotNullOrEmpty()]    
+    [string[]]$dpGroupName,
 	
 	[Parameter(
         Mandatory=$false,
         helpMessage = 'Distribution point(s)',
-        Position = 6)]    
+        Position = 6)] 
+        [validateNotNullOrEmpty()]   
     [string[]]$dpName 
  
 )
 
 function main
 {
+
     try
     {
         <#
@@ -93,10 +103,13 @@ function main
                 $pkgRef += $_ 
             }    
         } 
-        <#create package on retail SCCM content library DFS path only if 
+        <#create package on SCCM content library only if 
         $pkgRef contains 1 or more items #>
         if($pkgRef.count) 
         {
+            #Cast $pkgSrcPath
+            $pkgSrcPath = "filesystem::$pkgSrcPath"
+
             #create package source directory
             write-host "Creating package source directory" -foregroundColor green 
 
@@ -143,26 +156,35 @@ function main
             }
             new-cmProgram @prms | out-null                   
             
-            #distribute package 
-            write-host "Begin package distribution" -foregroundColor green 
-
-            start-cmContentDistribution -packageID $ncp.packageID `
+            if($dpGroupName.count) {
+                write-host "Begin package distribution" -foregroundColor green 
+                start-cmContentDistribution -packageID $ncp.packageID `
                 -distributionPointGroupName $dpGroupName
+            }  
+            
+            #can cause error if any DP is a member of DP group in prvious command
+            #call with -errorAction silentlyContinue
+
+            if($dpName.count) {
+                write-host "Begin package distribution" -foregroundColor green 
+                start-cmContentDistribution -packageID $ncp.packageID `
+                -distributionPointName $dpName -errorAction silentlyContinue 
+            }        
             write-host "Warning: $($ncp.name) - $($ncp.packageID) object path set to default" -foregroundColor yellow 
             write-host "Warning: $($ncp.name) - $($ncp.packageID) Nomad settings not configured" -foregroundColor yellow
         }
     }
     catch [System.IO.FileNotFoundException]
     {
-        write-host "Exception caught: $($error[0].exception)" -foregroundColor red
+        write-host "The specified module '$($error[0].targetObject)' was not loaded because `nno valid module file was found in any module directory." -foregroundColor red
     }
     catch [System.Management.Automation.DriveNotFoundException] 
     {
-        write-host "Exception caught: $($error[0].exception)" -foregroundColor red
+        write-host "A drive with the name '$($error[0].targetObject)' does not exist." -foregroundColor red
     }
-    catch [System.Management.Automation.ParameterBindingValidationException]
+    catch [System.Management.Automation.ParameterBindingException]
     {
-        write-host "Exception caught: $($error[0].exception)" -foregroundColor red
+        write-host "Unable to resolve environment variable: SMS_ADMIN_UI_PATH " -foregroundColor red
     }
     catch [System.Exception]
     {
@@ -174,6 +196,9 @@ function main
     }
 
 } #end function main
+
+function validate-input {
+}
 
     #global variables
         $CMPSSuppressFastNotUsedCheck = $true
